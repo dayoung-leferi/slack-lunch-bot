@@ -153,21 +153,45 @@ def draw_lottery():
         # GitHub에 저장
         save_winner_to_github(winner)
         
-        # 결과 발표
-        client.chat_postMessage(
+        # 원본 메시지 텍스트
+        original_text = "🍽️ 오늘의 점심 당번 추첨을 시작합니다!\n불참하실 분은 11시까지 ❌ 이모지를 달아주세요."
+        
+        # 당첨자 정보 추가
+        divider = "═" * 24
+        winner_text = f"""
+    
+    {divider}
+    🎉 당첨자: <@{winner}>님
+    
+    📍 댓글에 가게 2곳을 올려주세요!
+    👍 다른 분들은 댓글에 이모지(1️⃣,2️⃣)로 투표해주세요!
+    {divider}"""
+        
+        # 메시지 수정
+        client.chat_update(
             channel=CHANNEL_ID,
-            thread_ts=message_ts,
-            text=f"🎉 오늘의 점심 당번: <@{winner}>님!\n"
-                 f"맛있는 메뉴 추천 부탁드려요~ 🍜\n"
-                 f"(이번 주 {len(weekly_winners)+1}번째 당첨)"
+            ts=message_ts,
+            text=original_text + winner_text
         )
+        
         print(f"당첨자: {winner}")
+        
     else:
-        client.chat_postMessage(
+        # 당첨 가능한 사람 없을 때
+        original_text = "🍽️ 오늘의 점심 당번 추첨을 시작합니다!\n불참하실 분은 11시까지 ❌ 이모지를 달아주세요."
+        
+        divider = "─" * 24
+        no_winner_text = f"""
+    
+    {divider}
+    😅 오늘은 선택 가능한 사람이 없네요!
+    (이번 주 이미 {len(weekly_winners)}명 당첨)
+    {divider}"""
+        
+        client.chat_update(
             channel=CHANNEL_ID,
-            thread_ts=message_ts,
-            text="😅 오늘은 선택 가능한 사람이 없네요!\n"
-                 f"(이번 주 이미 {len(weekly_winners)}명 당첨)"
+            ts=message_ts,
+            text=original_text + no_winner_text
         )
 
 def load_message_id_from_github():

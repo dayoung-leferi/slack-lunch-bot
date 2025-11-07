@@ -1,11 +1,15 @@
 import os
 import json
 import random
+import requests
+import base64
 from slack_sdk import WebClient
 from datetime import datetime
 
 SLACK_TOKEN = os.environ['SLACK_TOKEN']
 CHANNEL_ID = os.environ['CHANNEL_ID']
+GITHUB_TOKEN = os.environ['TOKEN_GITHUB']
+REPO = "dayoung-leferi/slack-lunch-bot"  # 본인 저장소명 확인!
 
 client = WebClient(token=SLACK_TOKEN)
 
@@ -13,26 +17,84 @@ def get_week_number():
     """현재 주 번호"""
     return datetime.now().strftime("%Y_W%U")
 
-def load_winners():
-    """이번 주 당첨자 로드"""
+def load_winners_from_github():
+    """GitHub에서 당첨자 파일 읽기"""
     try:
-        with open('/tmp/winners.json', 'r') as f:
-            return json.load(f)
-    except:
+        headers = {
+            'Authorization': f'token {GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        
+        response = requests.get(
+            f'https://api.github.com/repos/{REPO}/contents/winners.json',
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            content = base64.b64decode(response.json()['content']).decode('utf-8')
+            data = json.loads(content)
+            print(f"기존 당첨자 데이터 로드: {data}")
+            return data
+        else:
+            print("winners.json 파일 없음, 새로 생성")
+            return {"week": get_week_number(), "winners": []}
+    except Exception as e:
+        print(f"GitHub 로드 에러: {e}")
         return {"week": get_week_number(), "winners": []}
 
-def save_winner(user_id):
-    """당첨자 저장"""
-    data = load_winners()
+def save_winner_to_github(winner_id):
+    """GitHub에 당첨자 저장"""
+    # 1. 현재 데이터 가져오기
+    data = load_winners_from_github()
     current_week = get_week_number()
     
-    if data["week"] != current_week:
+    # 2. 주가 바뀌었으면 초기화
+    if data.get("week") != current_week:
         data = {"week": current_week, "winners": []}
     
-    data["winners"].append(user_id)
+    # 3. 당첨자 추가
+    data["winners"].append(winner_id)
     
-    with open('/tmp/winners.json', 'w') as f:
-        json.dump(data, f)
+    # 4. GitHub에 저장
+    headers = {
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json',
+    }
+    
+    content = base64.b64encode(json.dumps(data, indent=2).encode()).decode()
+    
+    # 5. 파일이 있는지 확인 (SHA 필요)
+    sha = None
+    try:
+        response = requests.get(
+            f'https://api.github.com/repos/{REPO}/contents/winners.json',
+            headers=headers
+        )
+        if response.status_code == 200:
+            sha = response.json()['sha']
+    except:
+        pass
+    
+    # 6. 파일 생성 또는 업데이트
+    payload = {
+        "message": f"Update winners - {datetime.now().strftime('%Y-%m-%d')} 당첨자: {winner_id}",
+        "content": content,
+        "branch": "main"
+    }
+    
+    if sha:
+        payload["sha"] = sha
+    
+    response = requests.put(
+        f'https://api.github.com/repos/{REPO}/contents/winners.json',
+        headers=headers,
+        json=payload
+    )
+    
+    if response.status_code in [200, 201]:
+        print(f"당첨자 저장 성공: {winner_id}")
+    else:
+        print(f"저장 실패: {response.status_code} - {response.text}")
 
 def draw_lottery():
     """11:00 실행 - 자동 추첨"""
@@ -55,45 +117,53 @@ def draw_lottery():
         
         if 'reactions' in reactions['message']:
             for reaction in reactions['message']['reactions']:
-                if reaction['name'] in ['x', 'no_entry_sign', 'hand']:  # ❌, 🚫, ✋ 등
+                if reaction['name'] in ['x', 'no_entry_sign', 'hand']:
                     excluded_users.update(reaction['users'])
     except:
         pass
     
     # 2. 채널 멤버 가져오기
     members = client.conversations_members(channel=CHANNEL_ID)['members']
-    
-    # 3. 봇 제외 (봇은 U로 시작하지 않음)
     members = [m for m in members if m.startswith('U')]
     
-    # 4. 이번 주 당첨자 가져오기
-    winners_data = load_winners()
-    weekly_winners = winners_data['winners'] if winners_data['week'] == get_week_number() else []
+    # 3. 이번 주 당첨자 가져오기 (GitHub에서)
+    winners_data = load_winners_from_github()
+    weekly_winners = []
     
-    # 5. 제외 대상 합치기
+    if winners_data.get('week') == get_week_number():
+        weekly_winners = winners_data.get('winners', [])
+        print(f"이번 주 기존 당첨자: {weekly_winners}")
+    
+    # 4. 제외 대상 합치기
     excluded_users.update(weekly_winners)
+    print(f"제외 대상: {excluded_users}")
     
-    # 6. 추첨 가능한 사람 필터링
+    # 5. 추첨 가능한 사람 필터링
     eligible = [m for m in members if m not in excluded_users]
+    print(f"추첨 가능: {len(eligible)}명")
     
     if eligible:
         winner = random.choice(eligible)
-        save_winner(winner)
         
-        # 7. 결과 발표
+        # GitHub에 저장
+        save_winner_to_github(winner)
+        
+        # 결과 발표
         client.chat_postMessage(
             channel=CHANNEL_ID,
             thread_ts=message_ts,
-            text=f"🎉 오늘의 점심 당번: <@{winner}>님!\n맛있는 메뉴 추천 부탁드려요~ 🍜"
+            text=f"🎉 오늘의 점심 당번: <@{winner}>님!\n"
+                 f"맛있는 메뉴 추천 부탁드려요~ 🍜\n"
+                 f"(이번 주 {len(weekly_winners)+1}번째 당첨)"
         )
         print(f"당첨자: {winner}")
     else:
         client.chat_postMessage(
             channel=CHANNEL_ID,
             thread_ts=message_ts,
-            text="😅 오늘은 선택 가능한 사람이 없네요! (모두 당첨되었거나 불참)"
+            text="😅 오늘은 선택 가능한 사람이 없네요!\n"
+                 f"(이번 주 이미 {len(weekly_winners)}명 당첨)"
         )
-        print("추첨 가능한 사람이 없음")
 
 if __name__ == "__main__":
     draw_lottery()

@@ -1,3 +1,4 @@
+
 # name: Lunch Bot
 
 # on:
@@ -55,7 +56,7 @@
 #       env:
 #         SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
 #         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-#         GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}  # 추가!
+#         TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB }}  # 추가!
 #       run: python draw_lottery.py
 
 name: Lunch Bot
@@ -108,5 +109,5 @@ jobs:
       env:
         SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-        GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB }}
       run: python draw_lottery.py

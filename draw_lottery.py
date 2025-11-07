@@ -97,12 +97,3 @@ def draw_lottery():
 
 if __name__ == "__main__":
     draw_lottery()
-```
-
-"Commit new file" 클릭
-
-3. **requirements.txt 생성**
-   - "Add file" → "Create new file"
-   - 파일명: `requirements.txt`
-```
-slack-sdk==3.23.0

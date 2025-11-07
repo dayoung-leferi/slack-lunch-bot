@@ -49,3 +49,11 @@ jobs:
         SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
       run: python draw_lottery.py
+      
+    - name: Run Draw Lottery (11:00)
+      if: github.event.schedule == '0 2 * * 1-5' || github.event.inputs.action == 'draw'
+      env:
+        SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 추가!
+      run: python draw_lottery.py

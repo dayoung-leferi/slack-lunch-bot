@@ -99,13 +99,18 @@ def save_winner_to_github(winner_id):
 def draw_lottery():
     """11:00 실행 - 자동 추첨"""
     
-    # 10:30 메시지 ID 읽기
-    try:
-        with open('/tmp/message_ts.txt', 'r') as f:
-            message_ts = f.read().strip()
-    except:
-        print("오늘 메시지를 찾을 수 없습니다")
-        return
+    # GitHub에서 메시지 ID 읽기 (수정된 부분!)
+    message_ts = load_message_id_from_github()
+    
+    if not message_ts:
+        # 백업: 로컬 파일 시도
+        try:
+            with open('/tmp/message_ts.txt', 'r') as f:
+                message_ts = f.read().strip()
+                print(f"로컬 파일에서 찾음: {message_ts}")
+        except:
+            print("오늘 메시지를 찾을 수 없습니다")
+            return
     
     # 1. 이모지 반응한 사용자 가져오기
     excluded_users = set()
@@ -164,6 +169,38 @@ def draw_lottery():
             text="😅 오늘은 선택 가능한 사람이 없네요!\n"
                  f"(이번 주 이미 {len(weekly_winners)}명 당첨)"
         )
+
+def load_message_id_from_github():
+    """GitHub에서 오늘 메시지 ID 읽기"""
+    try:
+        headers = {
+            'Authorization': f'token {GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        
+        response = requests.get(
+            f'https://api.github.com/repos/{REPO}/contents/today_message.json',
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            content = base64.b64decode(response.json()['content']).decode('utf-8')
+            data = json.loads(content)
+            
+            # 오늘 날짜 확인
+            today = datetime.now().strftime("%Y-%m-%d")
+            if data.get('date') == today:
+                print(f"GitHub에서 메시지 ID 찾음: {data['message_ts']}")
+                return data['message_ts']
+            else:
+                print("저장된 메시지가 오늘 것이 아님")
+                return None
+        else:
+            print("today_message.json 파일 없음")
+            return None
+    except Exception as e:
+        print(f"GitHub에서 메시지 ID 로드 실패: {e}")
+        return None
 
 if __name__ == "__main__":
     draw_lottery()

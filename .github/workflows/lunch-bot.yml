@@ -1,0 +1,51 @@
+name: Lunch Bot
+
+on:
+  schedule:
+    # 한국시간 10:30 (UTC 01:30)
+    - cron: '30 1 * * 1-5'
+    # 한국시간 11:00 (UTC 02:00)
+    - cron: '0 2 * * 1-5'
+  
+  # 수동 실행 테스트용
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: true
+        default: 'start'
+        type: choice
+        options:
+        - start
+        - draw
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run Start Lottery (10:30)
+      if: github.event.schedule == '30 1 * * 1-5' || github.event.inputs.action == 'start'
+      env:
+        SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+      run: python start_lottery.py
+    
+    - name: Run Draw Lottery (11:00)
+      if: github.event.schedule == '0 2 * * 1-5' || github.event.inputs.action == 'draw'
+      env:
+        SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+      run: python draw_lottery.py

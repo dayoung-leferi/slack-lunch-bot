@@ -36,7 +36,7 @@ jobs:
         pip install -r requirements.txt
     
     - name: Run Start Lottery (10:00)
-      if: github.event.schedule == '00 1 * * 1-5' || github.event.inputs.action == 'start'
+      if: contains(github.event.schedule, '00 1') || github.event.inputs.action == 'start'
       env:
         SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
@@ -44,7 +44,7 @@ jobs:
       run: python start_lottery.py
     
     - name: Run Draw Lottery (11:00)
-      if: github.event.schedule == '0 2 * * 1-5' || github.event.inputs.action == 'draw'
+      if: contains(github.event.schedule, '00 2') || github.event.inputs.action == 'draw'
       env:
         SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}

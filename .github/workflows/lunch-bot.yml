@@ -19,7 +19,7 @@ on:
 
 jobs:
   start-lottery:
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'start') || github.event_name == 'schedule'
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'start') || (github.event_name == 'schedule')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
           python start_lottery.py
 
   draw-lottery:
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'draw') || github.event_name == 'schedule'
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'draw') || (github.event_name == 'schedule')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
